@@ -10,9 +10,10 @@ import numpy as np
 
 class U2NetWrapper(BackgroundRemover):
     """This class works for both the U2NET model and its ligther version U2NETP"""
-    def __init__(self, model_name: str = "u2net"):
+    def __init__(self, model_name: str = "u2net", rescale_size: int = 320):
         super().__init__()
         self.model_name = model_name
+        self.rescale_size = rescale_size
 
     def loadModel(self):
         print("In load model")
@@ -30,11 +31,14 @@ class U2NetWrapper(BackgroundRemover):
 
         self.net = net
 
-    def runModel(self, image: QImage):
+    def runModel(self, image: QImage | np.ndarray):
         self.net.eval()
-        np_image = helpers.qimage_to_numpy(image)
+        if isinstance(image, QImage):
+            np_image = helpers.qimage_to_numpy(image)
+        if isinstance(image, np.ndarray):
+            np_image = image
         # Preprocess
-        tensor = self.to_tensor_lab(self.cv2_rescale(np_image, 320))
+        tensor = self.to_tensor_lab(self.cv2_rescale(np_image, self.rescale_size))
         # Run model
         input = tensor.unsqueeze(0)
         input = input.type(torch.FloatTensor)

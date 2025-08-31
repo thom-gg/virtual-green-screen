@@ -12,7 +12,7 @@ from app.foreground_editor import ForegroundTab
 from app.sidebar import Sidebar
 from app.wrappers.u2net_wrapper import U2NetWrapper
 from app.realtime import RealTimeProcessing
-
+from app import helpers
 class ProcessImage(QWidget):
 
     def __init__(self, bgRemover):
@@ -65,7 +65,8 @@ class ProcessImage(QWidget):
     
     def updateImage(self):
         newImage = self.bgRemover.getImage(background=self.currentBackground, foreground=self.currentForeground)
-        self.image_widget.setImage(newImage)
+        qImage = helpers.numpy_to_qimage(newImage)
+        self.image_widget.setImage(qImage)
 
     def setImage(self, image):
         """Forward image to ImageWidget"""
@@ -166,6 +167,10 @@ class MainWindow(QWidget):
     def switchToOffline(self):
         self.mainContainer.setCurrentWidget(self.offlineProcessing)
         self.realTimeProcessing.stopWebcam()
+
+    def closeEvent(self, event):
+        self.realTimeProcessing.closeEvent(event)
+        event.accept()
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

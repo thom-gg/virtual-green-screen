@@ -1,11 +1,59 @@
 import sys
 import cv2
 from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QSizePolicy
-from PySide6.QtCore import QTimer, QSize
-from PySide6.QtGui import QImage, QPixmap
+from PySide6.QtCore import QTimer, QSize, QThread, Signal, Slot
+from PySide6.QtGui import QImage, QPixmap, QCloseEvent
 from PySide6.QtCore import Qt
+from app.wrappers.u2net_wrapper import U2NetWrapper
+from app import helpers
+import time
+
+class CameraWorker(QThread):
+    frame_ready = Signal(QImage)
+
+    def __init__(self, bgRemover):
+        super().__init__()
+        self.bgRemover = bgRemover
+        self.running = True
+        print("In worker init")
+        
+
+    def run(self):
+        print("Starting to run thread")
+        self.cap = cv2.VideoCapture(0)
+        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
+        self.running = True
+        prev_time = time.time()
+
+        while self.running and self.cap.isOpened():
+            ret, frame = self.cap.read()
+            if not ret:
+                continue
+            # Convert BGR → RGB
+            print("Running frame in camera worker")
+            
+
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            self.bgRemover.runModel(rgb_frame)
+            newImage = self.bgRemover.getImage(background='original', foreground='transparent')            
+            curr_time = time.time()
+            fps = 1 / (curr_time - prev_time)
+            prev_time = curr_time
+            cv2.putText(newImage, f'FPS: {fps:.2f}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 
+                    1, (0, 255, 0), 2, cv2.LINE_AA)
+            qImage = helpers.numpy_to_qimage(newImage)
 
 
+            self.frame_ready.emit(qImage)
+        if self.cap.isOpened():
+            self.cap.release()
+        print("Camera worker is done running")
+
+    def stop(self):
+        self.running = False
+        self.wait()
+        if self.cap.isOpened():
+            self.cap.release()
 
 class VideoWidget(QLabel):
     def __init__(self, width_pct: float, height_pct: float):
@@ -58,55 +106,41 @@ class RealTimeProcessing(QWidget):
         
         self.setLayout(layout)
         
-        # Set up a timer to update frames
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.update_frame)
+        self.all_bgRemover = [{"wrapperClass": U2NetWrapper, "parameters": ['u2net', 160]},
+                              ]
         
+        selectedBgRemover = self.all_bgRemover[0]
+        self.bgRemover = selectedBgRemover['wrapperClass'](*selectedBgRemover["parameters"])
+        self.bgRemover.loadModel()
+
         # Set window properties
         self.setWindowTitle("Real-time Webcam Display")
         self.resize(800, 600)
 
     def startWebcam(self):
-        self.cap = cv2.VideoCapture(0)
-        if not self.cap.isOpened():
-            self.video_label.setText("Error: Could not open webcam")
-            return  
-        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1) # reduce buffer size to 1
-        # start timer
-        self.timer.start(100)
+        # Create a new worker and start it
+        self.camera_worker = CameraWorker(self.bgRemover)
+        self.camera_worker.frame_ready.connect(self.updateFrame)
+        self.camera_worker.start()
+
+      
 
     def stopWebcam(self):
-        self.timer.stop()
-        self.cap.release()
-        self.cap = None
-    
-    def update_frame(self):
-        print("updating frame")
-        """Capture and display a new frame from the webcam"""
-        ret, frame = self.cap.read()
-        
-        if ret:
-            # Convert the frame from BGR to RGB (OpenCV uses BGR by default)
-            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            
-            # Get frame dimensions
-            h, w, ch = rgb_frame.shape
-            bytes_per_line = ch * w
-            
-            # Create QImage from the frame
-            qt_image = QImage(rgb_frame.data, w, h, bytes_per_line, QImage.Format_RGB888)
-            # Convert QImage to QPixmap and display it
-            pixmap = QPixmap.fromImage(qt_image)
-            self.video_widget.updateFrame(pixmap)
-            
-    
-    def closeEvent(self, event):
-        """Clean up resources when the widget is closed"""
-        if hasattr(self, 'timer'):
-            self.timer.stop()
-        
-        if hasattr(self, 'cap') and self.cap.isOpened():
-            self.cap.release()
-        
+        # Tell the worker to stop running, it will reach the end of its running loop and terminate itself
+        if hasattr(self,"camera_worker"):
+            self.camera_worker.stop()
+       
+    def closeEvent(self, event: QCloseEvent):
+        self.stopWebcam()
         event.accept()
+
+    
+    @Slot(QImage)
+    def updateFrame(self, qimg):
+        # Receiving a processed frame, updating it in the UI
+        self.video_widget.updateFrame(QPixmap.fromImage(qimg))
+
+    
+
+            
 
