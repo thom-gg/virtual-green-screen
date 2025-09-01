@@ -1,6 +1,6 @@
 import sys
 import cv2
-from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QSizePolicy
+from PySide6.QtWidgets import QApplication, QWidget, QVBoxLayout, QLabel, QSizePolicy, QSlider, QHBoxLayout
 from PySide6.QtCore import QTimer, QSize, QThread, Signal, Slot
 from PySide6.QtGui import QImage, QPixmap, QCloseEvent
 from PySide6.QtCore import Qt
@@ -11,43 +11,53 @@ import time
 class CameraWorker(QThread):
     frame_ready = Signal(QImage)
 
-    def __init__(self, bgRemover):
+    def __init__(self, bgRemover, target_fps, setHardwareMaxCallback):
         super().__init__()
         self.bgRemover = bgRemover
         self.running = True
         print("In worker init")
+        self.target_fps = target_fps
+        self.setHardwareMaxCallback = setHardwareMaxCallback
         
 
     def run(self):
         print("Starting to run thread")
         self.cap = cv2.VideoCapture(0)
+        self.cap.set(cv2.CAP_PROP_FPS, 60)
+        self.actualMaxFps = self.cap.get(cv2.CAP_PROP_FPS) # if its smaller than 60 opencv will have clamped it down
+        self.setHardwareMaxCallback(self.actualMaxFps)
+
         self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
         self.running = True
-        prev_time = time.time()
 
         while self.running and self.cap.isOpened():
+            frame_start = time.time()
+
             ret, frame = self.cap.read()
             if not ret:
                 continue
-            # Convert BGR → RGB
-            print("Running frame in camera worker")
             
 
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             self.bgRemover.runModel(rgb_frame)
             newImage = self.bgRemover.getImage(background='original', foreground='transparent')            
-            curr_time = time.time()
-            fps = 1 / (curr_time - prev_time)
-            prev_time = curr_time
-            cv2.putText(newImage, f'FPS: {fps:.2f}', (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 
-                    1, (0, 255, 0), 2, cv2.LINE_AA)
+            
             qImage = helpers.numpy_to_qimage(newImage)
 
 
             self.frame_ready.emit(qImage)
+
+            # if necessary wait before next iteration
+            elapsed = time.time() - frame_start
+            wait = (1.0 / self.target_fps) - elapsed
+            if wait > 0:
+                time.sleep(wait)
         if self.cap.isOpened():
             self.cap.release()
         print("Camera worker is done running")
+
+    def setTargetFps(self, target_fps):
+        self.target_fps = min(self.actualMaxFps, target_fps)
 
     def stop(self):
         self.running = False
@@ -59,7 +69,6 @@ class VideoWidget(QLabel):
     def __init__(self, width_pct: float, height_pct: float):
         super().__init__()
         self.setAlignment(Qt.AlignCenter)
-        self.setStyleSheet("border: 1px solid red;")
         self.setText("No video feed")
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed) # avoid that it expands
 
@@ -100,26 +109,61 @@ class RealTimeProcessing(QWidget):
         super().__init__()
         
         layout = QVBoxLayout(self)
+
+        self.target_fps = 15
         
         self.video_widget = VideoWidget(80,50)
         layout.addWidget(self.video_widget, alignment=Qt.AlignHCenter)
+        self.hardwareMaxLabel = QLabel("")
+        layout.addWidget(self.hardwareMaxLabel)
+
+
+        sliderWrapper = QHBoxLayout()
         
+        self.slider = QSlider(Qt.Horizontal)
+        self.slider.setMinimum(0)
+        self.slider.setMaximum(1000)
+        self.slider.setTickPosition(QSlider.TicksBelow)
+        self.slider.setTickInterval(10)
+        self.slider.setValue(self.target_fps)
+
+        self.slider.valueChanged.connect(self.handleSliderEvent)
+        
+        
+        self.fpsLabel = QLabel("")
+        self.fpsLabel.setText(str(self.slider.value()) + " fps")
+
+        sliderWrapper.addWidget(self.slider)
+        sliderWrapper.addWidget(self.fpsLabel)
+        layout.addLayout(sliderWrapper)
         self.setLayout(layout)
         
-        self.all_bgRemover = [{"wrapperClass": U2NetWrapper, "parameters": ['u2net', 160]},
+        self.all_bgRemover = [{"wrapperClass": U2NetWrapper, "parameters": ['u2net', 32]},
                               ]
         
         selectedBgRemover = self.all_bgRemover[0]
         self.bgRemover = selectedBgRemover['wrapperClass'](*selectedBgRemover["parameters"])
         self.bgRemover.loadModel()
 
+        
+
         # Set window properties
         self.setWindowTitle("Real-time Webcam Display")
         self.resize(800, 600)
+    
+    def handleSliderEvent(self, value):
+        self.fpsLabel.setText(str(value) + " fps")
+        self.camera_worker.setTargetFps(value)
+        self.target_fps = value
+
+    def setHardwareMaxFps(self, maxFps):
+        self.hardwareMaxFps = maxFps
+        self.hardwareMaxLabel.setText("Max hardware fps: "+ str(maxFps))
+        self.slider.setMaximum(maxFps)
 
     def startWebcam(self):
         # Create a new worker and start it
-        self.camera_worker = CameraWorker(self.bgRemover)
+        self.camera_worker = CameraWorker(self.bgRemover, self.target_fps, self.setHardwareMaxFps)
         self.camera_worker.frame_ready.connect(self.updateFrame)
         self.camera_worker.start()
 
@@ -139,6 +183,7 @@ class RealTimeProcessing(QWidget):
     def updateFrame(self, qimg):
         # Receiving a processed frame, updating it in the UI
         self.video_widget.updateFrame(QPixmap.fromImage(qimg))
+        
 
     
 
