@@ -1,8 +1,4 @@
-from PySide6.QtWidgets import (
-    QApplication, QLabel, QWidget, QVBoxLayout,  QHBoxLayout
-)
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QPixmap, QKeySequence, QImage, QColor
+from PySide6.QtWidgets import QLabel, QWidget, QVBoxLayout,  QHBoxLayout # type: ignore
 from app.helpers import ColorBox
 
 class ForegroundTab(QWidget):

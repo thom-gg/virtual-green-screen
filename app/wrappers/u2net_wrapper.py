@@ -1,10 +1,10 @@
 from app.wrappers.base import BackgroundRemover
 import os
 from app.models import U2NET, U2NETP
-import torch
-from PySide6.QtGui import  QImage
+import torch # type: ignore
+from PySide6.QtGui import  QImage # type: ignore
 import app.helpers as helpers
-from torch.autograd import Variable
+from torch.autograd import Variable # type: ignore
 import cv2 as cv
 import numpy as np
 

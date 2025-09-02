@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from PySide6.QtGui import  QImage, QColor
+from PySide6.QtGui import  QImage, QColor # type: ignore
 import numpy as np
 from .. import helpers
 
@@ -18,30 +18,36 @@ class BackgroundRemover(ABC):
     def runModel(self, image: QImage):
         pass
 
-    def getImage(self, background: str = 'original', foreground: str = 'original'):
+    def getImage(self, background: dict = {"type": "color", "value": "original"}, foreground: dict = {"type": "color", "value": "original"}):
         # Do operations on numpy array
-        # if self.original.shape[2] == 3: # rgb, make it rgba
-        #     alpha = np.ones((self.original.shape[0], self.original.shape[1], 1), dtype=self.original.dtype)  # alpha=1
-        #     self.original = np.concatenate([self.original, alpha], axis=-1)
-
-        if background == 'original':
-            bg = self.original
-        else:
-            bgColor = QColor(background)
-            if self.original.shape[-1] == 4:
-                bg = np.full_like(self.original, (bgColor.red(),bgColor.green(),bgColor.blue(), bgColor.alpha()), dtype=np.float32)
+        if background["type"] == "image":
+            # bg == rgba
+            bg = helpers.load_image_as_array(background["value"], self.original.shape[1], self.original.shape[0])
+            if self.original.shape[-1] == 3:
+                bg = bg[:,:,:3]
+        elif background["type"] == "color":
+            if background["value"] == 'original':
+                bg = self.original
             else:
-                bg = np.full_like(self.original, (bgColor.red(),bgColor.green(),bgColor.blue()), dtype=np.float32)
+                bgColor = QColor(background["value"])
+                if self.original.shape[-1] == 4:
+                    bg = np.full_like(self.original, (bgColor.red(),bgColor.green(),bgColor.blue(), bgColor.alpha()), dtype=np.float32)
+                else:
+                    bg = np.full_like(self.original, (bgColor.red(),bgColor.green(),bgColor.blue()), dtype=np.float32)
 
-
-        if foreground == 'original':
-            fg = self.original
-        else:
-            fgColor = QColor(foreground)
-            if self.original.shape[-1] == 4:
-                fg = np.full_like(self.original, (fgColor.red(),fgColor.green(),fgColor.blue(), fgColor.alpha()), dtype=np.float32)
+        if foreground["type"] == "image":
+            fg = helpers.load_image_as_array(foreground["value"], self.original.shape[1], self.original.shape[0])
+            if self.original.shape[-1] == 3:
+                fg = fg[:,:,:3]
+        elif foreground["type"] == "color":
+            if foreground["value"] == 'original':
+                fg = self.original
             else:
-                fg = np.full_like(self.original, (fgColor.red(),fgColor.green(),fgColor.blue()), dtype=np.float32)
+                fgColor = QColor(foreground["value"])
+                if self.original.shape[-1] == 4:
+                    fg = np.full_like(self.original, (fgColor.red(),fgColor.green(),fgColor.blue(), fgColor.alpha()), dtype=np.float32)
+                else:
+                    fg = np.full_like(self.original, (fgColor.red(),fgColor.green(),fgColor.blue()), dtype=np.float32)
 
         # broadcast mask. for each value in the mask, it goes from x to [x] 
         # and numpy will automatically broadcast it to [x,x,x,x] to multiply with [r,g,b,a] element-wise
@@ -51,8 +57,6 @@ class BackgroundRemover(ABC):
 
         # Convert to uint8 for OpenCV
         res = res.astype(np.uint8)
-        print("Res shape = ", res.shape)
-        # Convert numpy array to QImage
+
         return res
-        return helpers.numpy_to_qimage(res)
         

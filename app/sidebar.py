@@ -1,79 +1,93 @@
-from typing import List
-from PySide6.QtWidgets import (
-    QApplication, QLabel, QWidget, QVBoxLayout, QFileDialog, QStackedWidget, QPushButton, QGridLayout, QHBoxLayout
-)
-from PySide6.QtGui import QIcon, QPixmap, QColor, QPalette
-from PySide6.QtCore import Qt
 import os
+from PySide6.QtWidgets import  QWidget, QVBoxLayout,QPushButton, QSizePolicy #type: ignore
+from PySide6.QtCore import Qt, QSize # type: ignore
+from PySide6.QtGui import QIcon # type: ignore
 
 class Sidebar(QWidget):
-    def __init__(self, params: List[dict]):
+    def __init__(self, params):
         super().__init__()
         self.params = params
+        
 
+        wrapper = QVBoxLayout()
+        wrapper.setContentsMargins(0, 0, 0, 0)
 
-        self.setAutoFillBackground(True)
-        palette = self.palette()
-        palette.setColor(QPalette.Window, QColor("#0e0e11"))
-        self.setPalette(palette)
+        container = QWidget()
+        container.setStyleSheet("background-color: #0e0e11;")
+        
+        containerLayout = QVBoxLayout()
+        containerLayout.setContentsMargins(10, 10, 10, 10)  # Some padding
 
-        layout = QVBoxLayout()
-        layout.setContentsMargins(0, 50, 0, 0)
-        layout.setSpacing(10)
 
         self.buttons = []
         self.selectedIndex = 0
-        
-        
+
         assetsFolder = os.path.join(os.path.dirname(__file__), "assets/")
-        for idx,b in enumerate(self.params):
-            btn = QPushButton()
-            btn.setFixedSize(40, 40) 
+        for idx, b in enumerate(self.params):
+            btn = QPushButton(b["title"])
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setFixedHeight(45)
+            btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
             path = os.path.join(assetsFolder, b["file"])
             btn.setIcon(QIcon(path))
-            btn.setIconSize(btn.size() * 0.8)
-            btn.setToolTip(b["tooltip"])
-            btn.clicked.connect(lambda checked, id=idx: self.handleSelect(id))
-                            
-            btn.setCursor(Qt.PointingHandCursor)
-            layout.addWidget(btn,alignment=Qt.AlignHCenter)
-            self.buttons.append(btn)
+            btn.setIconSize(QSize(20, 20))
 
-        self.updateStyle(newIndex=self.selectedIndex)
-        layout.addStretch()  # Add space at bottom
-        
-        self.setLayout(layout)
+            btn.setToolTip(b["tooltip"])
+            btn.setStyleSheet(self.defaultStyle())
+            btn.setLayoutDirection(Qt.LeftToRight)  # icon left, text right
+            btn.setCheckable(True)
+
+            btn.clicked.connect(lambda checked, id=idx: self.handleSelect(id))
+
+            containerLayout.addWidget(btn)
+            self.buttons.append(btn)
+       
+
+        containerLayout.addStretch() 
+        container.setLayout(containerLayout)
+        # Add the container to main layout
+        wrapper.addWidget(container)
+        self.setLayout(wrapper)
+
+    def defaultStyle(self):
+        return """
+            QPushButton {
+                border: none;
+                border-radius: 8px;
+                padding: 5px 12px;
+                text-align: left;
+                color: #ffffff;
+                background-color: transparent;
+                font-size: 14px;
+            }
+            QPushButton:hover {
+                background-color: #2a2930;
+            }
+        """
+    def selectedStyle(self):
+        return """
+            QPushButton {
+                border: none;
+                border-radius: 8px;
+                padding: 5px 12px;
+                text-align: left;
+                color: #ffffff;
+                background-color: #313039;
+                font-weight: bold;
+            }
+        """
 
     def handleSelect(self, newIndex: int):
-        if (newIndex == self.selectedIndex):
+        if newIndex == self.selectedIndex:
             return
         self.updateStyle(newIndex)
         self.params[newIndex]["onClick"]()
 
     def updateStyle(self, newIndex: int):
-        # Reset old button
-        self.buttons[self.selectedIndex].setStyleSheet("""
-            QPushButton {
-                border: none;
-                padding: 0px;
-                border-radius: 8px;
-                background-color: transparent;
-            }
-            QPushButton:hover {
-                background-color: #313039;
-            }
-        """)
-
-        # Update new button
-        self.buttons[newIndex].setStyleSheet("""
-            QPushButton {
-                border: none;
-                padding: 0px;
-                border-radius: 8px;
-                background-color: #313039;
-            }                       
-        """)
+        # Reset old
+        self.buttons[self.selectedIndex].setStyleSheet(self.defaultStyle())
+        # Highlight new
+        self.buttons[newIndex].setStyleSheet(self.selectedStyle())
         self.selectedIndex = newIndex
-
-
-
+        

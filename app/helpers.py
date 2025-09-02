@@ -1,11 +1,8 @@
-import sys
 import numpy as np
-from PySide6.QtWidgets import (
-    QApplication, QLabel, QWidget, QVBoxLayout, QHBoxLayout, QFileDialog, QStackedWidget, QTabWidget,QPushButton
-
-)
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QPixmap, QKeySequence, QImage, QColor, QIcon, QPainter, QFont
+from PySide6.QtWidgets import QPushButton #type: ignore
+from PySide6.QtCore import Qt # type: ignore
+from PySide6.QtGui import QImage, QFont #type: ignore
+import cv2
 
 class ColorBox(QPushButton):
     """A clickable color box widget"""
@@ -31,6 +28,8 @@ class ColorBox(QPushButton):
                 {bgStyle}
                 border: 2px solid #ddd;
                 border-radius: 8px;
+                padding: 0;
+                margin: 0;
             }}
             QPushButton:hover {{
                 border: 2px solid #999;
@@ -40,7 +39,7 @@ class ColorBox(QPushButton):
             }}
         """)
                 
-        self.clicked.connect(lambda: callback(self.color))
+        self.clicked.connect(lambda: callback({"type": "color", "value": self.color}))
 
 
 def qimage_to_numpy(qimage: QImage) -> np.ndarray:
@@ -79,3 +78,32 @@ def numpy_to_qimage(arr: np.ndarray) -> QImage:
         raise ValueError("Invalid array shape: {}".format(arr.shape))
 
     return qimage.copy()  # copy to detach from numpy buffer
+
+
+def load_image_as_array(path, target_width, target_height):
+    # Read image in BGR format
+    img = cv2.imread(path, cv2.IMREAD_UNCHANGED)
+    if img is None:
+        raise ValueError(f"Could not load image: {path}")
+
+    # Ensure 4 channels (if no alpha, add fully opaque)
+    if img.shape[2] == 3:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2BGRA)
+
+    # Convert BGRA -> RGBA
+    img = cv2.cvtColor(img, cv2.COLOR_BGRA2RGBA)
+    h, w, _ = img.shape
+
+    # --- Resize (zoom if too small) ---
+    # Scale factor to make sure image is at least as large as target
+    scale = max(target_width / w, target_height / h)
+    new_w, new_h = int(w * scale), int(h * scale)
+
+    resized = cv2.resize(img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+
+    # --- Crop to exact target size (center crop) ---
+    start_x = (new_w - target_width) // 2
+    start_y = (new_h - target_height) // 2
+    cropped = resized[start_y:start_y+target_height, start_x:start_x+target_width]
+
+    return cropped
