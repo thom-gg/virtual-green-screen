@@ -8,8 +8,9 @@ import numpy as np
 class CameraWorker(QThread):
     frame_ready = Signal(np.ndarray)
 
-    def __init__(self, bgRemover, target_fps, setHardwareMaxCallback, setWebcamResolution):
+    def __init__(self, webcamId, bgRemover, target_fps, setHardwareMaxCallback, setWebcamResolution):
         super().__init__()
+        self.webcamId = webcamId
         self.bgRemover = bgRemover
         self.running = True
         print("In worker init")
@@ -23,7 +24,7 @@ class CameraWorker(QThread):
 
     def run(self):
         print("Starting to run thread")
-        self.cap = cv2.VideoCapture(0)
+        self.cap = cv2.VideoCapture(self.webcamId)
         self.cap.set(cv2.CAP_PROP_FPS, 60)
         self.actualMaxFps = self.cap.get(cv2.CAP_PROP_FPS) # if its smaller than 60 opencv will have clamped it down
         self.setHardwareMaxCallback(self.actualMaxFps)

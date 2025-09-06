@@ -1,5 +1,5 @@
 
-from PySide6.QtWidgets import  QWidget, QVBoxLayout, QLabel, QSlider, QHBoxLayout, QTabWidget, QCheckBox # type: ignore
+from PySide6.QtWidgets import  QWidget, QVBoxLayout, QLabel, QSlider, QHBoxLayout, QTabWidget, QCheckBox, QComboBox, QSizePolicy # type: ignore
 from PySide6.QtCore import Slot, Qt # type: ignore
 from PySide6.QtGui import QImage, QPixmap, QCloseEvent # type: ignore
 from app.wrappers.u2net_wrapper import U2NetWrapper
@@ -8,6 +8,8 @@ from app.background_editor import BackgroundTab
 from app.foreground_editor import ForegroundTab
 from app.realtime.video_widget import VideoWidget
 from app.realtime.camera_worker import CameraWorker
+from PySide6.QtMultimedia import QMediaDevices # type: ignore
+
 import pyvirtualcam # type: ignore
 import numpy as np
 
@@ -18,6 +20,14 @@ class RealTimeProcessing(QWidget):
         
         layout = QVBoxLayout(self)
 
+        self.selected_webcam = 0
+        self.webcams_id = ["Default"]
+        self.webcam_combobox = QComboBox()
+        self.webcam_combobox.activated.connect(self.changeWebcam)
+        self.webcam_combobox.setSizeAdjustPolicy(QComboBox.AdjustToContents)
+        self.webcam_combobox.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        layout.addWidget(self.webcam_combobox,alignment=Qt.AlignHCenter)
+        
         self.target_fps = 15
         
         self.video_widget = VideoWidget(80,50)
@@ -75,8 +85,6 @@ class RealTimeProcessing(QWidget):
     def changeForeground(self, color: dict):
         self.camera_worker.currentForeground = color
 
-    
-    
     def handleSliderEvent(self, value):
         self.fpsLabel.setText(str(value) + " fps")
         self.camera_worker.setTargetFps(value)
@@ -95,10 +103,29 @@ class RealTimeProcessing(QWidget):
 
     def startWebcam(self):
         # Create a new worker and start it
-        self.camera_worker = CameraWorker(self.bgRemover, self.target_fps, self.setHardwareMaxFps, self.setWebcamResolution)
+        self.fetchWebcams()
+
+        self.camera_worker = CameraWorker(self.selected_webcam, self.bgRemover, self.target_fps, self.setHardwareMaxFps, self.setWebcamResolution)
         self.camera_worker.frame_ready.connect(self.updateFrame)
         self.camera_worker.start()
+        
+    def fetchWebcams(self):
+        devices = QMediaDevices.videoInputs()
+        webcams = [d.description() for d in devices]
+        
+        self.all_webcams = webcams
+        self.webcam_combobox.clear()
+        for w in webcams:
+            self.webcam_combobox.addItem(w)
+        self.webcam_combobox.adjustSize()
 
+
+    def changeWebcam(self, index: int):
+        if index == self.selected_webcam:
+            return
+        self.selected_webcam = index # kinda praying that webcam index corresponds to the order fetched by QMediaDevices
+        self.stopWebcam()
+        self.startWebcam()
       
 
     def stopWebcam(self):
