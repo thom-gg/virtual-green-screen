@@ -50,10 +50,12 @@ class MainWindow(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    window = MainWindow()
-
+    
     themePath = os.path.join(os.path.dirname(__file__), "themes", "theme.xml")
     apply_stylesheet(app, theme=themePath)
+
+    window = MainWindow()
+
     
     window.show()
     sys.exit(app.exec())

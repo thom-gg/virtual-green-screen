@@ -1,6 +1,7 @@
 from PySide6.QtWidgets import QApplication, QLabel, QWidget, QVBoxLayout, QFileDialog,QSizePolicy # type: ignore
 from PySide6.QtCore import Qt # type: ignore
 from PySide6.QtGui import QKeySequence, QImage # type: ignore
+import os 
 
 class DropZone(QLabel):
     def __init__(self, callback):
@@ -75,7 +76,8 @@ class DropZoneWrapper(QWidget):
 
         self.layout.addStretch()
         line1 = QLabel("Remove the background")
-        line1.setStyleSheet("QLabel {font-size: 40px;}")
+        primaryTextColor = os.environ["QTMATERIAL_PRIMARYTEXTCOLOR"]
+        line1.setStyleSheet("QLabel {font-size: 40px; color: "+primaryTextColor+"; }")
         line1.setProperty("class", "secondary-text")
 
         self.layout.addWidget(line1, alignment=Qt.AlignHCenter)
