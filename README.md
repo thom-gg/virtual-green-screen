@@ -7,7 +7,12 @@ This is a desktop application to remove / modify the background on images or in 
 ### Usage
 Start the application by running
 
-```python3 -m app.application```
+```bash
+python3 -m venv path/to/new/env/
+source path/to/new/env/bin/activate
+python3 -m pip install -r requirements.txt
+python3 -m app.application
+```
 
 ### Image Segmentation
 The image segmentation is done using the U^2-Net model from Xuebin Qin et al.   
@@ -22,5 +27,5 @@ Processed realtime webcam stream can be used in other applications (Discord, Zoo
 
 This package doesn't work on latest MacOS releases, because OBS Virtual Webcam changed behavior.
 
-Repository: [https://github.com/letmaik/pyvirtualcam](https://github.com/letmaik/pyvirtualcam)
+You need to setup the virtual webcam beforehand to be able to enable it, please read the instructions from the package's README: [https://github.com/letmaik/pyvirtualcam](https://github.com/letmaik/pyvirtualcam)
 
