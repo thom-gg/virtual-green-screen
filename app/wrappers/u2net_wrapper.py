@@ -16,7 +16,6 @@ class U2NetWrapper(BackgroundRemover):
         self.rescale_size = rescale_size
 
     def loadModel(self):
-        print("In load model")
         model_path = os.path.join(os.path.dirname(__file__), "../models/" + self.model_name + ".pth")
         if self.model_name == "u2net":
             net = U2NET(3,1)

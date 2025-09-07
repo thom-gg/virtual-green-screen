@@ -115,7 +115,7 @@ class ProcessImage(QWidget):
             "",
             "PNG Image (*.png);;JPEG Image (*.jpg);;Bitmap Image (*.bmp)"
         )
-        prevText = self.copy_button.text()
+        prevText = self.download_button.text()
 
         if file_name:
             if not file_name.lower().endswith((".png", ".jpg", ".jpeg", ".bmp")):
