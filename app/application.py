@@ -1,8 +1,9 @@
 import sys
 import os
-from PySide6.QtWidgets import QApplication, QWidget, QHBoxLayout, QStackedWidget # type: ignore
+from PySide6.QtWidgets import QApplication, QWidget, QHBoxLayout, QVBoxLayout, QStackedWidget, QLabel # type: ignore
 
 from app.sidebar import Sidebar
+from app.footer import Footer
 from app.realtime.realtime import RealTimeProcessing
 from qt_material import apply_stylesheet # type: ignore
 from app.offline.offline import OfflineProcessing
@@ -15,9 +16,13 @@ class MainWindow(QWidget):
         self.resize(1100, 768)
         
         
-        self.layout = QHBoxLayout(self)
+        self.layout = QVBoxLayout(self) # Contains main layout + footer
         self.layout.setContentsMargins(0, 0, 0, 0)  # left, top, right, bottom
         self.layout.setSpacing(0)
+
+        self.mainLayout = QHBoxLayout() # contains sidebar + mainContainer
+        self.mainLayout.setContentsMargins(0, 0, 0, 0)  # left, top, right, bottom
+        self.mainLayout.setSpacing(0)
        
         self.mainContainer = QStackedWidget()
         self.offlineProcessing = OfflineProcessing()
@@ -31,9 +36,23 @@ class MainWindow(QWidget):
      
         sidebar = Sidebar(sidebarParams)
         
-        self.layout.addWidget(sidebar, 10)
-        self.layout.addWidget(self.mainContainer, 90)
+        self.mainLayout.addWidget(sidebar, 10)
+        self.mainLayout.addWidget(self.mainContainer, 90)
+
+
+        mainLayoutWidget = QWidget() # wrapper around the main layout
+        mainLayoutWidget.setLayout(self.mainLayout)
+        footer = Footer(self.updateModelCallback)
+
+        self.layout.addWidget(mainLayoutWidget, 96)
+        self.layout.addWidget(footer, 4)
+
+
         self.setLayout(self.layout)
+
+    def updateModelCallback(self, modelInfos: dict):
+        self.realTimeProcessing.updateModel(modelInfos)
+        self.offlineProcessing.updateModel(modelInfos)
     
     def switchToRealTime(self):
         self.realTimeProcessing.startWebcam()
@@ -50,7 +69,7 @@ class MainWindow(QWidget):
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    
+
     themePath = os.path.join(os.path.dirname(__file__), "themes", "theme.xml")
     apply_stylesheet(app, theme=themePath)
 

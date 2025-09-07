@@ -2,7 +2,7 @@
 from PySide6.QtWidgets import  QWidget, QVBoxLayout, QLabel, QSlider, QHBoxLayout, QTabWidget, QCheckBox, QComboBox, QSizePolicy # type: ignore
 from PySide6.QtCore import Slot, Qt # type: ignore
 from PySide6.QtGui import QImage, QPixmap, QCloseEvent # type: ignore
-from app.wrappers.u2net_wrapper import U2NetWrapper
+from app.wrappers import all_models
 from app import helpers
 from app.background_editor import BackgroundTab
 from app.foreground_editor import ForegroundTab
@@ -27,7 +27,7 @@ class RealTimeProcessing(QWidget):
         self.webcam_combobox.setSizeAdjustPolicy(QComboBox.AdjustToContents)
         self.webcam_combobox.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         layout.addWidget(self.webcam_combobox,alignment=Qt.AlignHCenter)
-        
+
         self.target_fps = 15
         
         self.video_widget = VideoWidget(80,50)
@@ -68,11 +68,8 @@ class RealTimeProcessing(QWidget):
 
         self.setLayout(layout)
         
-        self.all_bgRemover = [{"wrapperClass": U2NetWrapper, "parameters": ['u2net', 160]},
-                              ]
         
-        selectedBgRemover = self.all_bgRemover[0]
-        self.bgRemover = selectedBgRemover['wrapperClass'](*selectedBgRemover["parameters"])
+        self.bgRemover = all_models[0]['model'](*all_models[0]['args'])
         self.bgRemover.loadModel()
 
         
@@ -80,6 +77,13 @@ class RealTimeProcessing(QWidget):
         # Set window properties
         self.setWindowTitle("Real-time Webcam Display")
         self.resize(800, 600)
+    
+    def updateModel(self, modelInfos: dict):
+        self.bgRemover = modelInfos['model'](*modelInfos["args"])
+        self.bgRemover.loadModel()
+        if hasattr(self, "camera_worker"):
+            self.camera_worker.setBgRemover(self.bgRemover)
+
     def changeBackground(self, color: dict):
         self.camera_worker.currentBackground = color
     def changeForeground(self, color: dict):

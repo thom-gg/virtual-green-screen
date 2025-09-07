@@ -12,6 +12,7 @@ class CameraWorker(QThread):
         super().__init__()
         self.webcamId = webcamId
         self.bgRemover = bgRemover
+        self.nextBgRemover = None
         self.running = True
         print("In worker init")
         self.target_fps = target_fps
@@ -21,6 +22,9 @@ class CameraWorker(QThread):
         self.currentBackground = {"type": "color", "value": "original"}
         self.currentForeground = {"type": "color", "value": "original"}
         
+    def setBgRemover(self, newBgRemover):
+        # Put it in a specific variable to be replaced during next iteration of the loop
+        self.nextBgRemover = newBgRemover
 
     def run(self):
         print("Starting to run thread")
@@ -34,6 +38,10 @@ class CameraWorker(QThread):
         self.running = True
 
         while self.running and self.cap.isOpened():
+            if self.nextBgRemover != None: # changing model
+                self.bgRemover = self.nextBgRemover
+                self.nextBgRemover = None
+
             frame_start = time.time()
 
             ret, frame = self.cap.read()

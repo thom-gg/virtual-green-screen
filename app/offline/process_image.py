@@ -6,6 +6,7 @@ from app.offline.image_widget import ImageWidget
 from app.background_editor import BackgroundTab
 from app.foreground_editor import ForegroundTab
 from app import helpers
+import numpy as np
 
 class ProcessImage(QWidget):
 
@@ -73,6 +74,16 @@ class ProcessImage(QWidget):
         self.setLayout(layout)
         self.currentBackground = {"type": "color", "value": "original"}
         self.currentForeground = {"type": "color", "value": "original"}
+    
+    def updateBgRemover(self, newBgRemover):
+        # save original image from previous bgRemover object
+        original_image = self.bgRemover.original
+        # update bgRemover
+        self.bgRemover = newBgRemover
+        # recompute image
+        if isinstance(original_image, np.ndarray): # (if original_image != None)
+            self.bgRemover.runModel(original_image)
+            self.updateImage()
 
     def changeBackground(self, color: dict):
         self.currentBackground = color
