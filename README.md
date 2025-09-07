@@ -29,3 +29,10 @@ This package doesn't work on latest MacOS releases, because OBS Virtual Webcam c
 
 You need to setup the virtual webcam beforehand to be able to enable it, please read the instructions from the package's README: [https://github.com/letmaik/pyvirtualcam](https://github.com/letmaik/pyvirtualcam)
 
+#### Preview:
+![](./figures/realtime_example.png)
+
+There a slider allowing to limit the wanted FPS, to avoid computing more images than desired. 
+
+### Performance
+This model inference is quite long, it'll automatically run on CUDA if available on your computer, but I will try to add a faster model.
