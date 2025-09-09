@@ -17,7 +17,7 @@ python3 -m app.application
 ### Image Segmentation
 The image segmentation is done using the U^2-Net model from Xuebin Qin et al.   
 
-Official repository: [https://github.com/letmaik/pyvirtualcam](https://github.com/xuebinqin/U-2-Net)
+Official repository: [(https://github.com/xuebinqin/U-2-Net](https://github.com/xuebinqin/U-2-Net)
 
 #### Showcase:
 ![](./figures/showcase.png)
